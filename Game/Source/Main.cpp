@@ -2,10 +2,24 @@
 
 int main()
 {
-    // Logica del tuo gioco
-    /*Engine engine;
-    engine.Run();*/
-    std::cout << "Hello World" << std::endl;
+    try
+    {
+        Engine engine(1920, 1080, "My Game");
 
-    return 0;
+        flecs::world& world = engine.GetWorld();
+
+        world.import<flecs::stats>();
+        world.set<flecs::Rest>({});
+
+        world.entity("Player")
+            .set<Position>({ 640.0f, 360.0f });
+
+        engine.Run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }

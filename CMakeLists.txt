@@ -1,26 +1,23 @@
-﻿cmake_minimum_required (VERSION 3.8)
+﻿cmake_minimum_required( VERSION 3.31 )
 
-# Abilita Ricaricamento rapido per i compilatori MSVC, se supportato.
-if (POLICY CMP0141)
-  cmake_policy(SET CMP0141 NEW)
-  set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
-endif()
+project( ConceptualEngine )
 
-project ("Engine")
+find_package( OpenGL REQUIRED )
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(BUILD_SHARED_LIBS OFF)
+include_directories(
+	${OPENGL_INCLUDE_DIRS}
+	libraries/glad/include
+)
 
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
+set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 
-# Assumi che le librerie esterne siano in una sottocartella "libraries"
-add_subdirectory(libraries/glfw-3.4)
-#add_subdirectory(libraries/glew)
-#add_subdirectory(libraries/flecs)
+set(EXTERNAL_LIBRARIES_DIR "${CMAKE_SOURCE_DIR}/libraries")
 
-# Aggiungi il tuo motore e il tuo gioco
-add_subdirectory(Engine)
-add_subdirectory(Game)
+add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/glfw )
+add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/flecs )
+
+add_executable(ConceptualEngine libraries/glad/src/gl.c)
+
+add_subdirectory( Engine )
+add_subdirectory( Game )
