@@ -1,0 +1,6 @@
+[submodule "libraries/glfw"]
+	path = libraries/glfw
+	url = https://github.com/glfw/glfw
+[submodule "libraries/flecs"]
+	path = libraries/flecs
+	url = https://github.com/SanderMertens/flecs
