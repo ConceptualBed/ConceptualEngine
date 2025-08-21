@@ -1,17 +1,34 @@
+#pragma once
+
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <flecs.h>
+#include "Core/Renderer.h"
 
 #include <iostream>
 
-// Componenti del motore per il rendering data-oriented
+// Componenti di base per la trasformazione e la grafica
 struct Position
 {
     float x, y;
 };
-struct Sprite
+struct Rotation
 {
-    int textureID;
+    float value;
+};
+struct Scale
+{
+    float x, y;
+};
+
+// Componenti che definiscono la risorsa grafica
+struct MaterialRef
+{
+    unsigned int materialID;
+};
+struct SpriteRef
+{
+    unsigned int spriteID;
 };
 
 class Engine
@@ -26,9 +43,13 @@ public:
 private:
     GLFWwindow* window;
     flecs::world world;
+    Renderer* renderer;
 
-    void InitSubsystems();
+    double lastFrameTime = 0.0;
+    int frameCount = 0;
+    double frameRate = 0.0;
+    
     void MainLoop();
+    void UpdateStats();
     void RegisterEngineComponents();
-    void RegisterEngineSystems();
 };

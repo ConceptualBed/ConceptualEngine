@@ -8,8 +8,10 @@ int main()
 
         flecs::world& world = engine.GetWorld();
 
+        // DEBUG: FLECS EXPLORER  ####################
         world.import<flecs::stats>();
         world.set<flecs::Rest>({});
+        // ###########################################
 
         world.entity("Player")
             .set<Position>({ 640.0f, 360.0f });

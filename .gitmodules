@@ -4,3 +4,6 @@
 [submodule "libraries/flecs"]
 	path = libraries/flecs
 	url = https://github.com/SanderMertens/flecs
+[submodule "libraries/glm"]
+	path = libraries/glm
+	url = https://github.com/g-truc/glm
