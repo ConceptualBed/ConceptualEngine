@@ -1,179 +1,130 @@
 #include "Core/AssetManager.h"
-#include <fstream>
-#include <sstream>
 #include <iostream>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include <stdexcept>
 
-// Definizione e inizializzazione dei membri statici
-std::map<std::string, unsigned int> AssetManager::textureCache;
-std::map<std::string, unsigned int> AssetManager::shaderCache;
-std::vector<std::unique_ptr<Texture>> AssetManager::textures;
-std::vector<std::unique_ptr<Shader>> AssetManager::shaders;
-std::vector<SpriteData> AssetManager::sprites;
-
-// Funzione statica helper per la compilazione degli shader
-static unsigned int CompileShader(unsigned int type, const std::string& source)
+AssetManager& AssetManager::GetInstance()
 {
-    unsigned int id = glCreateShader(type);
-    const char* src = source.c_str();
-    glShaderSource(id, 1, &src, nullptr);
-    glCompileShader(id);
-
-    // Gestione degli errori di compilazione
-    int result;
-    glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-    if (result == GL_FALSE)
-    {
-        int length;
-        glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-        char* message = (char*)alloca(length * sizeof(char));
-        glGetShaderInfoLog(id, length, &length, message);
-        std::cerr << "ERROR::SHADER::COMPILATION_FAILED: " << message << std::endl;
-        glDeleteShader(id);
-        return 0;
-    }
-    return id;
+    static AssetManager instance;
+    return instance;
 }
 
-// Implementazione del modulo Flecs
-AssetManagerModule::AssetManagerModule(flecs::world& world)
+AssetManager::AssetManager()
 {
-    // Inizializza i sistemi dell'asset manager, se necessario
+    asyncWorker = std::thread(&AssetManager::AsyncWorkerThread, this);
 }
 
-unsigned int AssetManager::LoadTexture(const std::string& path)
+AssetManager::~AssetManager()
 {
-    // 1. Controlla la cache per evitare di caricare la stessa texture due volte
-    if (textureCache.count(path))
+    stopWorker = true;
+    taskCondition.notify_one();
+    if (asyncWorker.joinable())
     {
-        return textureCache.at(path);
+        asyncWorker.join();
     }
-
-    // 2. Carica i dati dell'immagine con STB Image
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
-
-    if (!data)
-    {
-        std::cerr << "ERROR::TEXTURE::FAILED_TO_LOAD_IMAGE: " << path << std::endl;
-        stbi_image_free(data);
-        return 0;
-    }
-
-    // 3. Genera e configura la texture OpenGL
-    unsigned int textureID;
-    glGenTextures(1, &textureID);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-
-    GLenum format = (nrChannels == 4) ? GL_RGBA : GL_RGB;
-
-    // Impostazioni per la pixel art
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    // Carica i dati nell'oggetto texture
-    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    stbi_image_free(data);
-
-    // 4. Memorizza la risorsa e l'ID
-    unsigned int id = textures.size();
-    textures.push_back(std::make_unique<Texture>(Texture{ textureID }));
-    textureCache[path] = id;
-
-    return id;
 }
 
-unsigned int AssetManager::LoadShader(const std::string& vertexPath, const std::string& fragmentPath)
+template<typename T, typename... Args>
+std::shared_ptr<T> AssetManager::FindOrLoad(const std::string& name, const std::string& path, Args&&... args)
 {
-    // 1. Controlla la cache
-    std::string cacheKey = vertexPath + "|" + fragmentPath;
-    if (shaderCache.count(cacheKey))
+    std::lock_guard<std::mutex> lock(assetsMutex);
+
+    if (assets.find(name) != assets.end())
     {
-        return shaderCache.at(cacheKey);
+        return std::static_pointer_cast<T>(assets.at(name));
     }
 
-    // 2. Carica i file di testo degli shader
-    std::string vertexCode;
-    std::string fragmentCode;
-    std::ifstream vShaderFile;
-    std::ifstream fShaderFile;
-    vShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    try
+    std::shared_ptr<T> asset = std::make_shared<T>(path, std::forward<Args>(args)...);
+    assets[name] = asset;
+
+    return asset;
+}
+
+std::shared_ptr<Shader> AssetManager::GetShader(const std::string& name, const std::map<unsigned int, std::string>& shaderPaths)
+{
+    std::lock_guard<std::mutex> lock(assetsMutex);
+    if (assets.find(name) != assets.end())
     {
-        vShaderFile.open(vertexPath);
-        fShaderFile.open(fragmentPath);
-        std::stringstream vShaderStream, fShaderStream;
-        vShaderStream << vShaderFile.rdbuf();
-        fShaderStream << fShaderFile.rdbuf();
-        vShaderFile.close();
-        fShaderFile.close();
-        vertexCode = vShaderStream.str();
-        fragmentCode = fShaderStream.str();
-    }
-    catch (std::ifstream::failure e)
-    {
-        std::cerr << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
-        return 0;
+        return std::static_pointer_cast<Shader>(assets.at(name));
     }
 
-    // 3. Compila e collega gli shader
-    unsigned int vertex, fragment;
-    vertex = CompileShader(GL_VERTEX_SHADER, vertexCode);
-    fragment = CompileShader(GL_FRAGMENT_SHADER, fragmentCode);
+    std::shared_ptr<Shader> shader = std::make_shared<Shader>(shaderPaths);
+    assets[name] = shader;
+    return shader;
+}
 
-    unsigned int programID = glCreateProgram();
-    glAttachShader(programID, vertex);
-    glAttachShader(programID, fragment);
-    glLinkProgram(programID);
+std::shared_ptr<Texture> AssetManager::GetTexture(const std::string& name, const std::string& path, TextureFilter filter)
+{
+    return FindOrLoad<Texture>(name, path, filter);
+}
 
-    // Gestione degli errori di link
-    int success;
-    char infoLog[512];
-    glGetProgramiv(programID, GL_LINK_STATUS, &success);
-    if (!success)
+void AssetManager::GarbageCollect()
+{
+    std::lock_guard<std::mutex> lock(assetsMutex);
+
+    for (auto it = assets.begin(); it != assets.end();)
     {
-        glGetProgramInfoLog(programID, 512, NULL, infoLog);
-        std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-        return 0;
+        if (it->second.use_count() == 1)
+        {
+            std::cout << "Garbage collecting: " << it->first << std::endl;
+            it = assets.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
-    glDeleteShader(vertex);
-    glDeleteShader(fragment);
-
-    // 4. Memorizza la risorsa e l'ID
-    unsigned int id = shaders.size();
-    shaders.push_back(std::make_unique<Shader>(Shader{ programID }));
-    shaderCache[cacheKey] = id;
-
-    return id;
 }
 
-unsigned int AssetManager::RegisterSpriteData(const SpriteData& data)
+void AssetManager::LoadAssetAsync(const std::string& name, const std::string& path, const std::function<std::shared_ptr<Asset>()>& loadFunction)
 {
-    unsigned int id = sprites.size();
-    sprites.push_back(data);
-    return id;
+    {
+        std::lock_guard<std::mutex> lock(taskMutex);
+        asyncTasks.push_back({ name, path, loadFunction });
+        activeTasks++;
+    }
+    taskCondition.notify_one();
 }
 
-Texture* AssetManager::GetTexture(unsigned int id)
+void AssetManager::WaitForAllLoads()
 {
-    if (id >= textures.size()) return nullptr;
-    return textures[id].get();
+    while (activeTasks > 0)
+    {
+        std::this_thread::yield();
+    }
 }
 
-Shader* AssetManager::GetShader(unsigned int id)
+void AssetManager::AsyncWorkerThread()
 {
-    if (id >= shaders.size()) return nullptr;
-    return shaders[id].get();
-}
+    while (!stopWorker)
+    {
+        std::unique_lock<std::mutex> lock(taskMutex);
+        taskCondition.wait(lock, [this]()
+            {
+                return !asyncTasks.empty() || stopWorker;
+            });
 
-SpriteData* AssetManager::GetSpriteData(unsigned int id)
-{
-    if (id >= sprites.size()) return nullptr;
-    return &sprites[id];
+        if (stopWorker)
+        {
+            return;
+        }
+
+        AsyncLoadTask task = asyncTasks.front();
+        asyncTasks.erase(asyncTasks.begin());
+
+        lock.unlock();
+
+        try
+        {
+            std::shared_ptr<Asset> loadedAsset = task.loadFunction();
+            std::lock_guard<std::mutex> assetLock(assetsMutex);
+            assets[task.name] = loadedAsset;
+            std::cout << "Successfully loaded asset: " << task.name << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Failed to load async asset: " << task.name << " | Error: " << e.what() << std::endl;
+        }
+
+        activeTasks--;
+    }
 }

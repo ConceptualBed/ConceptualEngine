@@ -56,7 +56,6 @@ Engine::Engine(int width, int height, const char* title)
     // Inizializza i sottosistemi del motore (Flecs, rendering, ecc.)
     RegisterEngineComponents();
 
-    world.import<AssetManagerModule>();
     //world.system<Position, Rotation, Scale, SpriteRef, MaterialRef>("RenderingSystem")
     //    .each(RenderingSystem);
 

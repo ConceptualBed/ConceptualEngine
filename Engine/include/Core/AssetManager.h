@@ -1,56 +1,61 @@
 #pragma once
 
 #include <string>
-#include <vector>
-#include <map>
-#include <stdexcept>
+#include <unordered_map>
 #include <memory>
-#include <glad/gl.h>
-#include <flecs.h>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <condition_variable>
+#include <functional>
+#include <vector>
 
-// Definizione delle risorse
-//struct Texture
-//{
-//    unsigned int id;
-//};
+#include "Core/Assets/Asset.h"
+#include "Core/Assets/Shader.h"
+#include "Core/Assets/Texture.h"
 
-//struct Shader
-//{
-//    unsigned int id;
-//};
-
-struct SpriteData
+// Task per il caricamento asincrono
+struct AsyncLoadTask
 {
-    unsigned int textureID;
-    float uvX, uvY, uvWidth, uvHeight;
+    std::string name;
+    std::string path;
+    std::function<std::shared_ptr<Asset>()> loadFunction;
 };
 
 class AssetManager
 {
 public:
-    static unsigned int LoadTexture(const std::string& path);
-    static unsigned int LoadShader(const std::string& vertexPath, const std::string& fragmentPath);
-    static unsigned int RegisterSpriteData(const SpriteData& data);
+    static AssetManager& GetInstance();
 
-    static Texture* GetTexture(unsigned int id);
-    static Shader* GetShader(unsigned int id);
-    static SpriteData* GetSpriteData(unsigned int id);
+    // Metodi per ottenere asset
+    std::shared_ptr<Shader> GetShader(const std::string& name, const std::map<unsigned int, std::string>& shaderPaths);
+    std::shared_ptr<Texture> GetTexture(const std::string& name, const std::string& path, TextureFilter filter = TextureFilter::SMOOTH);
+
+    // Metodi per il caricamento asincrono
+    void LoadAssetAsync(const std::string& name, const std::string& path, const std::function<std::shared_ptr<Asset>()>& loadFunction);
+    void WaitForAllLoads();
+
+    // Clean up all unused assets
+    void GarbageCollect();
 
 private:
-    static std::map<std::string, unsigned int> textureCache;
-    static std::map<std::string, unsigned int> shaderCache;
-    static std::vector<std::unique_ptr<Texture>> textures;
-    static std::vector<std::unique_ptr<Shader>> shaders;
-    static std::vector<SpriteData> sprites;
+    AssetManager();
+    ~AssetManager();
 
-    // Non permettiamo l'istanziazione
-    AssetManager() = delete;
-};
+    // Mappa per memorizzare gli asset caricati
+    std::unordered_map<std::string, std::shared_ptr<Asset>> assets;
+    std::mutex assetsMutex;
 
-// Modulo Flecs per l'AssetManager
-struct AssetManagerModule {
-    AssetManagerModule(flecs::world& world)
-    {
-        world.module<AssetManagerModule>();
-    }
+    // Per il caricamento asincrono
+    std::vector<AsyncLoadTask> asyncTasks;
+    std::thread asyncWorker;
+    std::mutex taskMutex;
+    std::condition_variable taskCondition;
+    std::atomic<bool> stopWorker = false;
+    std::atomic<int> activeTasks = 0;
+
+    void AsyncWorkerThread();
+
+    template<typename T, typename... Args>
+    std::shared_ptr<T> FindOrLoad(const std::string& name, const std::string& path, Args&&... args);
 };

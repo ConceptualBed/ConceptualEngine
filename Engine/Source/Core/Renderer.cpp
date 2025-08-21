@@ -3,6 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <GLFW/glfw3.h>
 #include <map>
+#include "Core/AssetManager.h"
 
 const float WORLD_WIDTH = 800.0f;
 const float WORLD_HEIGHT = 600.0f;
@@ -17,15 +18,13 @@ Renderer::Renderer()
     shaderPaths[GL_FRAGMENT_SHADER] = "Resources/Assets/Shaders/Basic/Textured.frag";
 
     // Crea un'istanza della classe Shader
-    simpleShader = new Shader(shaderPaths);
+    simpleShader = AssetManager::GetInstance().GetShader("simple_shader", shaderPaths);
     
-    simpleTexture = new Texture("Resources/Assets/Textures/sampleTexture.png", TextureFilter::PIXEL_PERFECT);
+    simpleTexture = AssetManager::GetInstance().GetTexture("simple_texture", "Resources/Assets/Textures/sampleTexture.png", TextureFilter::PIXEL_PERFECT);
 }
 
 Renderer::~Renderer()
 {
-    delete simpleShader;
-    delete simpleTexture;
     glDeleteVertexArrays(1, &quadVAO);
     glDeleteBuffers(1, &quadVBO);
     glDeleteBuffers(1, &EBO);

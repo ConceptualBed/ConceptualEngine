@@ -2,8 +2,9 @@ add_library(Engine STATIC
     "${CMAKE_SOURCE_DIR}/libraries/glad/src/gl.c"
     Source/Core/Engine.cpp
     Source/Core/Renderer.cpp
-    Source/Core/Shader.cpp
- "Source/Core/Texture.cpp")
+    "Source/Core/AssetManager.cpp"
+    "Source/Core/Assets/Shader.cpp"
+ "Source/Core/Assets/Texture.cpp" )
 
 # Rendi visibili gli header del motore al progetto del gioco
 target_include_directories(Engine PUBLIC 

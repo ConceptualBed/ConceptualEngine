@@ -2,6 +2,7 @@
 
 #include <glad/gl.h>
 #include <string>
+#include "Core/Assets/Asset.h"
 
 enum class TextureFilter
 {
@@ -9,7 +10,7 @@ enum class TextureFilter
     SMOOTH
 };
 
-class Texture
+class Texture : public Asset
 {
 public:
     /**

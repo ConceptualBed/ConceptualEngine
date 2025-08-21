@@ -1,8 +1,9 @@
 #pragma once
 
 #include <glad/gl.h>
-#include "Shader.h"
-#include "Texture.h"
+#include <memory>
+#include "Assets/Shader.h"
+#include "Assets/Texture.h"
 
 // Basic class that manages rendering pipeline
 class Renderer
@@ -15,8 +16,8 @@ public:
 
 private:
     unsigned int quadVAO, quadVBO, EBO;
-    Shader* simpleShader;
-    Texture* simpleTexture;
+    std::shared_ptr<Shader> simpleShader;
+    std::shared_ptr<Texture> simpleTexture;
 
     void InitBuffers();
 };

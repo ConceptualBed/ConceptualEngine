@@ -7,8 +7,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <stdexcept>
+#include "Core/Assets/Asset.h"
 
-class Shader
+class Shader : public Asset
 {
 public:
     // Maps shader paths per type (ie. GL_VERTEX_SHADER, GL_FRAGMENT_SHADER)
