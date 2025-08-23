@@ -24,6 +24,7 @@ set(EXTERNAL_LIBRARIES_DIR "${CMAKE_SOURCE_DIR}/libraries")
 add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/glfw )
 add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/flecs )
 add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/glm )
+add_subdirectory( ${EXTERNAL_LIBRARIES_DIR}/json )
 
 add_executable(ConceptualEngine libraries/glad/src/gl.c)
 

@@ -1,0 +1,9 @@
+{
+  "shader_paths": {
+    "vertex": "Resources/Assets/Shaders/Basic/DefaultShader.vert",
+    "fragment": "Resources/Assets/Shaders/Basic/DefaultShader.frag"
+  },
+  "uniforms": {
+    "uColor": [ 1.0, 0.0, 0.0, 1.0 ]
+  }
+}

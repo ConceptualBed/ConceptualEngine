@@ -9,10 +9,13 @@
 #include <condition_variable>
 #include <functional>
 #include <vector>
+#include <glm/glm.hpp>
 
 #include "Core/Assets/Asset.h"
 #include "Core/Assets/Shader.h"
 #include "Core/Assets/Texture.h"
+#include "Core/Assets/Material.h"
+#include "Core/Assets/MaterialAsset.h"
 
 // Task per il caricamento asincrono
 struct AsyncLoadTask
@@ -30,6 +33,8 @@ public:
     // Metodi per ottenere asset
     std::shared_ptr<Shader> GetShader(const std::string& name, const std::map<unsigned int, std::string>& shaderPaths);
     std::shared_ptr<Texture> GetTexture(const std::string& name, const std::string& path, TextureFilter filter = TextureFilter::SMOOTH);
+    std::shared_ptr<MaterialAsset> GetMaterialAsset(const std::string& path);
+    std::shared_ptr<Material> CreateMaterialFromAsset(const std::shared_ptr<MaterialAsset>& materialAsset);
 
     // Metodi per il caricamento asincrono
     void LoadAssetAsync(const std::string& name, const std::string& path, const std::function<std::shared_ptr<Asset>()>& loadFunction);

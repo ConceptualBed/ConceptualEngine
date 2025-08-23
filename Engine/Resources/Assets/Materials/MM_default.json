@@ -1,0 +1,12 @@
+{
+  "shader_paths": {
+    "vertex": "Resources/Assets/Shaders/Basic/Textured.vert",
+    "fragment": "Resources/Assets/Shaders/Basic/Textured.frag"
+  },
+  "uniforms": {
+    "texture_diffuse": {
+      "path": "Resources/Assets/Textures/sampleTexture.png",
+      "filter": "pixel_perfect"
+    }
+    }
+}

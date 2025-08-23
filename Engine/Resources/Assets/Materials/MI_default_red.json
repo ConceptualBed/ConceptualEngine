@@ -1,0 +1,6 @@
+{
+  "parent": "Resources/Assets/Materials/MM_default.json",
+  "uniforms": {
+    "uColor": [ 1.0, 0.0, 0.0 ]
+  }
+}

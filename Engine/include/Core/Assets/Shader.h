@@ -21,6 +21,8 @@ public:
     // Getter function for shader ID
     unsigned int GetID() const;
 
+    GLint GetUniformLocation(const std::string& name) const;
+
     // API to set the uniforms
 
     void SetBool(const std::string& name, bool value) const;
@@ -40,5 +42,4 @@ private:
 
     // Caches the location of uniforms for performance optimization
     mutable std::map<std::string, GLint> uniformCache;
-    GLint GetUniformLocation(const std::string& name) const;
 };

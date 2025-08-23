@@ -4,7 +4,7 @@ add_library(Engine STATIC
     Source/Core/Renderer.cpp
     "Source/Core/AssetManager.cpp"
     "Source/Core/Assets/Shader.cpp"
- "Source/Core/Assets/Texture.cpp" )
+ "Source/Core/Assets/Texture.cpp"  "Source/Core/Assets/Material.cpp" "Source/Core/Assets/MaterialAsset.cpp")
 
 # Rendi visibili gli header del motore al progetto del gioco
 target_include_directories(Engine PUBLIC 
@@ -14,6 +14,7 @@ target_include_directories(Engine PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/flecs/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/glm"
     "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/stb"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../libraries/json/include"
 )
 
 # Collega il tuo motore alle librerie esterne
@@ -21,10 +22,5 @@ target_link_libraries(Engine PRIVATE
     glfw
     flecs::flecs_static
     glm::glm
-)
-
-set_source_files_properties(
-    ${CMAKE_SOURCE_DIR}/Resources/Assets/Shaders/Basic/Textured.vert
-    ${CMAKE_SOURCE_DIR}/Resources/Assets/Shaders/Basic/Textured.frag
-    PROPERTIES GENERATED true
+    nlohmann_json::nlohmann_json
 )

@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <map>
 #include "Core/AssetManager.h"
+#include <iostream>
 
 const float WORLD_WIDTH = 800.0f;
 const float WORLD_HEIGHT = 600.0f;
@@ -11,16 +12,12 @@ const float WORLD_HEIGHT = 600.0f;
 Renderer::Renderer()
 {
     InitBuffers();
-
-    // Crea una mappa per i percorsi degli shader
-    std::map<unsigned int, std::string> shaderPaths;
+    /*std::map<unsigned int, std::string> shaderPaths;
     shaderPaths[GL_VERTEX_SHADER] = "Resources/Assets/Shaders/Basic/Textured.vert";
     shaderPaths[GL_FRAGMENT_SHADER] = "Resources/Assets/Shaders/Basic/Textured.frag";
+    testShader = AssetManager::GetInstance().GetShader("test_shader", shaderPaths);
 
-    // Crea un'istanza della classe Shader
-    simpleShader = AssetManager::GetInstance().GetShader("simple_shader", shaderPaths);
-    
-    simpleTexture = AssetManager::GetInstance().GetTexture("simple_texture", "Resources/Assets/Textures/sampleTexture.png", TextureFilter::PIXEL_PERFECT);
+    testTexture = AssetManager::GetInstance().GetTexture("simple_texture", "Resources/Assets/Textures/sampleTexture.png", TextureFilter::PIXEL_PERFECT);*/
 }
 
 Renderer::~Renderer()
@@ -30,10 +27,22 @@ Renderer::~Renderer()
     glDeleteBuffers(1, &EBO);
 }
 
-void Renderer::DrawSingleColoredQuad(const glm::vec2& position, float scale)
+void Renderer::DrawSingleColoredQuad(const std::shared_ptr<MaterialAsset>& materialAsset, const glm::vec2& position, float scale)
 {
-    // 1. Attiva lo shader
-    simpleShader->Use();
+    if (!materialAsset)
+    {
+        std::cerr << "ERROR: Cannot draw with a null MaterialAsset." << std::endl;
+        return;
+    }
+
+    // Crea l'istanza Material "al volo" basata sull'asset
+    std::shared_ptr<Material> material = AssetManager::GetInstance().CreateMaterialFromAsset(materialAsset);
+
+    if (!material)
+    {
+        std::cerr << "ERROR: Failed to create material from asset." << std::endl;
+        return;
+    }
 
     int width, height;
     glfwGetFramebufferSize(glfwGetCurrentContext(), &width, &height);
@@ -42,23 +51,18 @@ void Renderer::DrawSingleColoredQuad(const glm::vec2& position, float scale)
 
     // 1. Calculate orthographic projection matrix
     // L'origine (0,0) sarà in basso a sinistra e le coordinate del mondo andranno fino a (WORLD_WIDTH, WORLD_HEIGHT).
-    glm::mat4 projection = glm::ortho(-aspectRatio, aspectRatio, -1.0f, 1.0f, -1.0f, 1.0f);
-
-    // 2. Passa la matrice allo shader.
-    simpleShader->SetMat4("projection", projection);
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(width), 0.0f, static_cast<float>(height));
 
     // 2. Calculate model matrix
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, glm::vec3(position.x, position.y, 0.0f));
     model = glm::scale(model, glm::vec3(scale, scale, 1.0f));
 
-    // 3. Passa la matrice allo shader
-    simpleShader->SetMat4("model", model);
+    material->SetMat4("projection", projection);
+    material->SetMat4("model", model);
+    material->SetFloat("time", (float)glfwGetTime());
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, simpleTexture->GetID());
-
-    simpleShader->SetInt("texture_diffuse", 0);
+    material->Use();
 
     // 4. Disegna il quadrato
     glBindVertexArray(quadVAO);

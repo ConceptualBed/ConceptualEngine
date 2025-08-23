@@ -1,6 +1,8 @@
 #include "Core/AssetManager.h"
 #include <iostream>
 #include <stdexcept>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 AssetManager& AssetManager::GetInstance()
 {
@@ -55,6 +57,113 @@ std::shared_ptr<Shader> AssetManager::GetShader(const std::string& name, const s
 std::shared_ptr<Texture> AssetManager::GetTexture(const std::string& name, const std::string& path, TextureFilter filter)
 {
     return FindOrLoad<Texture>(name, path, filter);
+}
+
+std::shared_ptr<MaterialAsset> AssetManager::GetMaterialAsset(const std::string& path)
+{
+    std::lock_guard<std::mutex> lock(assetsMutex);
+
+    if (assets.count(path))
+    {
+        return std::static_pointer_cast<MaterialAsset>(assets.at(path));
+    }
+
+    std::shared_ptr<MaterialAsset> materialAsset;
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        std::cerr << "ERROR: Failed to open material asset file: " << path << std::endl;
+        return nullptr;
+    }
+
+    nlohmann::json data;
+    file >> data;
+
+    if (data.contains("parent"))
+    {
+        std::string parentPath = data.at("parent");
+        std::shared_ptr<MaterialAsset> parentAsset = GetMaterialAsset(parentPath);
+        if (parentAsset)
+        {
+            materialAsset = std::make_shared<MaterialInstanceAsset>(path, parentAsset);
+        }
+        else
+        {
+            std::cerr << "ERROR: Failed to load parent material asset: " << parentPath << std::endl;
+            return nullptr;
+        }
+    }
+    else
+    {
+        materialAsset = std::make_shared<MaterialAsset>(path);
+    }
+
+    assets[path] = materialAsset;
+    return materialAsset;
+}
+
+std::shared_ptr<Material> AssetManager::CreateMaterialFromAsset(const std::shared_ptr<MaterialAsset>& materialAsset)
+{
+    if (!materialAsset)
+    {
+        return nullptr;
+    }
+
+    // Ottieni lo shader
+    std::map<unsigned int, std::string> shaderPaths;
+    const nlohmann::json& paths = materialAsset->GetShaderPaths();
+    if (paths.contains("vertex"))
+    {
+        shaderPaths[GL_VERTEX_SHADER] = paths.at("vertex");
+    }
+    if (paths.contains("fragment"))
+    {
+        shaderPaths[GL_FRAGMENT_SHADER] = paths.at("fragment");
+    }
+
+    std::shared_ptr<Shader> shader = GetShader(paths.at("vertex"), shaderPaths);
+    if (!shader)
+    {
+        return nullptr;
+    }
+
+    // Crea e configura l'istanza del Material
+    std::shared_ptr<Material> material = std::make_shared<Material>(shader);
+
+    const nlohmann::json& uniforms = materialAsset->GetUniforms();
+    for (auto const& [key, val] : uniforms.items())
+    {
+        if (val.is_number())
+        {
+            material->SetFloat(key, val.get<float>());
+        }
+        else if (val.is_array() && val.size() == 3)
+        {
+            material->SetVec3(key, glm::vec3(val[0], val[1], val[2]));
+        }
+        else if (val.is_array() && val.size() == 4)
+        {
+            material->SetVec4(key, glm::vec4(val[0], val[1], val[2], val[3]));
+        }
+        else if (val.is_object() && val.contains("path") && val.contains("filter"))
+        {
+            std::string texturePath = val.at("path").get<std::string>();
+            std::string filterStr = val.at("filter").get<std::string>();
+
+            TextureFilter filter = TextureFilter::SMOOTH;
+            if (filterStr == "pixel_perfect")
+            {
+                filter = TextureFilter::PIXEL_PERFECT;
+            }
+
+            std::shared_ptr<Texture> texture = GetTexture(texturePath, texturePath, filter);
+            if (texture)
+            {
+                material->SetTexture(key, texture);
+            }
+        }
+    }
+    return material;
 }
 
 void AssetManager::GarbageCollect()

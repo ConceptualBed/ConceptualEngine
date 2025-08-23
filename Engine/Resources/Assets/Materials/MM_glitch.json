@@ -1,0 +1,13 @@
+{
+  "shader_paths": {
+    "vertex": "Resources/Assets/Shaders/Basic/Glitch.vert",
+    "fragment": "Resources/Assets/Shaders/Basic/Glitch.frag"
+  },
+  "uniforms": {
+    "texture_diffuse": {
+      "path": "Resources/Assets/Textures/sampleTexture.png",
+      "filter": "pixel_perfect"
+    },
+    "uColor": [ 1.0, 1.0, 1.0, 1.0 ]
+  }
+}
